@@ -6,7 +6,7 @@ This project is dedicated to resolving the problems of affordability and accessi
 
 ## The Challenge
 
-Ma zone cec, an ebook solution, is cumbersome and DRM-restricted. Users are compelled to maintain an active internet connection merely to access their purchased books, which is far from ideal. This project addresses this issue by providing a tool to convert your personal I+ Interactif books into PDF format.
+Ma zone cec, an ebook solution, is cumbersome and DRM-restricted. Users are compelled to maintain an active internet connection merely to access their purchased books, which is far from ideal. This project addresses this issue by providing a tool to convert your personal Ma zone cec books into PDF format.
 
 ## Disclaimer
 We want to make it abundantly clear that the "ma-zone-cec-to-pdf" tool is intended for legitimate and legal purposes only. We are not responsible for any misuse of this software for illegal activities, including but not limited to piracy of Ma zone cec books.
