@@ -1,13 +1,14 @@
-import { chromium, } from 'playwright';
+import { chromium } from 'playwright';
 import './loadEnv.js';
 import fs from 'fs';
+import path from 'path';
 
 async function timeout(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function start() {
-    fs.mkdirSync("./output/imgs", { recursive: true });
+    fs.mkdirSync("./imgs", { recursive: true });
 
     const browser = await chromium.launch({ headless: false });
     const page = await browser.newPage();
@@ -21,35 +22,64 @@ async function start() {
 
     await page.waitForNavigation();
 
-    await page.getByTestId('bookshelf_component_2666').click();
+    let bookName = await page.locator(`xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div/div[1]/div[2]/div/div/div/button/span`).innerText();
+
+    await page.locator(`xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div/div[2]/div/div[2]/div/div[1]/div[1]/div/div[1]/button`).click();
 
     await page.waitForNavigation();
+
+    const pageInput = await page.locator(`xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/div[1]/input`);
+    await pageInput.fill('C1');
+    await pageInput.press('Enter');
+
+    console.log(`Saving "${bookName}" pages...`);
 
     let state = true;
     let pageCount = 1;
     while (state) {
         await page.locator(`.canvasWrapper > canvas:nth-child(1)`).waitFor();
-        //wait for 3 sec to load the canvas
-        await timeout(3000);
+        //wait for 6 sec to load the canvas
+        await timeout(6000);
 
         let img = await page.evaluate(() => {
             return {
                 base64: document.getElementsByTagName('canvas')[0].toDataURL("image/png").split(';base64,')[1],
-                pdf: document.getElementsByTagName('canvas')[0].toDataURL("application/pdf")
+                canvas: document.getElementsByTagName('canvas')[0]
             } 
         });
 
-        await page.pdf({ path: `./output/livre_${pageCount}.pdf`, format: 'A4' });
-        console.log(`PDF saved successfully: ./output/livre_${pageCount}.pdf`);
+        // Write base64 data as PNG image
+        fs.writeFileSync(`./imgs/${pageCount}.png`, img.base64, 'base64');
+        console.log(`Page ${pageCount} saved to ./imgs/${pageCount}.png`);
 
+        
         try {
             await page.getByTestId('next_previous_btn_right_arrow').click();
         } catch (error) {
             state = false;
+        }
+        
+        if (pageCount % 10 === 0) {
+            await page.reload();
         }
 
         pageCount++;
     }
 }
 
-start();
+async function saveProgress(bookName) {
+    const savePath = `./save/${bookName}`;
+    fs.mkdirSync(savePath, { recursive: true });
+
+    const imgFiles = fs.readdirSync('./imgs');
+    for (const imgFile of imgFiles) {
+        const sourcePath = path.join('./imgs', imgFile);
+        const destinationPath = path.join(savePath, imgFile);
+        fs.renameSync(sourcePath, destinationPath);
+    }
+
+    console.log(`All images moved to ${savePath}`);
+}
+
+// start();
+saveProgress('test');
