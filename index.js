@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import './loadEnv.js';
 import fs from 'fs';
 import path from 'path';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 
 async function timeout(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -34,6 +35,8 @@ async function start() {
 
     console.log(`Saving "${bookName}" pages...`);
 
+    const pdfDoc = await PDFDocument.create()
+
     let state = true;
     let pageCount = 1;
     while (state) {
@@ -44,7 +47,7 @@ async function start() {
         let img = await page.evaluate(() => {
             return {
                 base64: document.getElementsByTagName('canvas')[0].toDataURL("image/png").split(';base64,')[1],
-                canvas: document.getElementsByTagName('canvas')[0]
+                // canvas: document.getElementsByTagName('canvas')[0]
             } 
         });
 
@@ -52,11 +55,28 @@ async function start() {
         fs.writeFileSync(`./imgs/${pageCount}.png`, img.base64, 'base64');
         console.log(`Page ${pageCount} saved to ./imgs/${pageCount}.png`);
 
+        const pdfPage = await pdfDoc.addPage();
+        
+        // Create PDFImage object from the image data
+        const image = await pdfDoc.embedPng(img.base64);
+
+        // Draw the image on the PDF page
+        await pdfPage.drawImage(image, {
+            x: 0,
+            y: 0,
+            width: pdfPage.getWidth(),
+            height: pdfPage.getHeight(),
+        });
         
         try {
             await page.getByTestId('next_previous_btn_right_arrow').click();
         } catch (error) {
             state = false;
+            const pdfBytes = await pdfDoc.save()
+            fs.writeFileSync(`./${bookName}.pdf`, pdfBytes);
+            console.log(`All pages saved to ${bookName}.pdf`);
+            await browser.close();
+            await saveProgress(bookName);
         }
         
         if (pageCount % 10 === 0) {
@@ -81,5 +101,7 @@ async function saveProgress(bookName) {
     console.log(`All images moved to ${savePath}`);
 }
 
-// start();
-saveProgress('test');
+
+
+start();
+// saveProgress('test');
