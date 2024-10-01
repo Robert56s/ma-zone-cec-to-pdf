@@ -3,6 +3,12 @@ import './loadEnv.js';
 import fs from 'fs';
 import path from 'path';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import readline from 'node:readline';
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+});
 
 async function timeout(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -23,9 +29,11 @@ async function start() {
 
     await page.waitForNavigation();
 
-    let bookName = await page.locator(`xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div/div[1]/div[2]/div/div/div/button/span`).innerText();
-
-    await page.locator(`xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div/div[2]/div/div[2]/div/div[1]/div[1]/div/div[1]/button`).click();
+    let bookName;
+    await rl.question(`\nSelect the book you want to copy. Enter the book name when you're done: `, fuck => {
+        bookName = fuck
+        rl.close();
+    });
 
     await page.waitForNavigation();
 
