@@ -37,6 +37,9 @@ async function start() {
 
     await page.waitForNavigation();
 
+    console.log("...")
+    await timeout(5000);
+
     const pageInput = await page.locator(`xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/div[1]/input`);
     await pageInput.fill('C1');
     await pageInput.press('Enter');
@@ -109,7 +112,42 @@ async function saveProgress(bookName) {
     console.log(`All images moved to ${savePath}`);
 }
 
+async function makePDF(bookName) {
+
+    console.log(`Creating PDF for ${bookName}...`);
+
+    const pdfDoc = await PDFDocument.create()
+
+    const imgFiles = await fs.readdirSync('./imgs');
+    console.log(imgFiles.length)
+
+    for (let i = 1; i < imgFiles.length; i++) {
+        const sourcePath = path.join('./imgs', `${i}.png`);
+        console.log(sourcePath)
+
+        const pdfPage = await pdfDoc.addPage();
+
+        const uint8Array = await fs.readFileSync(sourcePath)
+
+        // Create PDFImage object from the image data
+        const image = await pdfDoc.embedPng(uint8Array);
+
+        // Draw the image on the PDF page
+        await pdfPage.drawImage(image, {
+            x: 0,
+            y: 0,
+            width: pdfPage.getWidth(),
+            height: pdfPage.getHeight(),
+        });
+        console.log(`Page ${i} added to PDF`);
+    }
+
+    const pdfBytes = await pdfDoc.save()
+    await fs.writeFileSync(`./${bookName}.pdf`, pdfBytes);
+    console.log(`All pages saved to ${bookName}.pdf`);
+}
+
 
 
 start();
-// saveProgress('test');
+// makePDF('test');
