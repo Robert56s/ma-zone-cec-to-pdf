@@ -20,12 +20,13 @@ async function start() {
     const browser = await chromium.launch({ headless: false });
     const page = await browser.newPage();
 
+    await page.setDefaultTimeout(120_000);
     await page.goto('https://mazonecec.com/application/login');
 
-    await page.getByTestId('login_input_username').fill(process.env.USER);
-    await page.getByTestId('login_input_password').fill(process.env.PASS);
-    await page.getByTestId('login_check_remember_me').click();
-    await page.getByTestId('login_button_connect').click();
+    await page.locator('xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/input').fill(process.env.USER);
+    await page.locator('xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/div[2]/input').fill(process.env.PASS);
+    await page.locator('xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/button[1]/div').click();
+    await page.locator('xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/button[2]').click();
 
     await page.waitForNavigation();
 
@@ -41,8 +42,11 @@ async function start() {
     await timeout(5000);
 
     const pageInput = await page.locator(`xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/div[1]/input`);
+    await pageInput.waitFor();
+    await timeout(3000);
     await pageInput.fill('C1');
     await pageInput.press('Enter');
+    await timeout(3000);
 
     console.log(`Saving "${bookName}" pages...`);
 
@@ -80,7 +84,7 @@ async function start() {
         });
         
         try {
-            await page.getByTestId('next_previous_btn_right_arrow').click();
+            await page.locator('xpath=/html/body/div/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div[1]/div/div/div/div/div[1]/div/div[3]/div[2]/div/button').click();
         } catch (error) {
             state = false;
             const pdfBytes = await pdfDoc.save()
