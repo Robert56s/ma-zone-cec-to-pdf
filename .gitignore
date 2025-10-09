@@ -129,6 +129,8 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-./save/*/*
-./save/*
-./imgs/*
+/save/
+/imgs/
+/*.env
+*.pdf
+*.vscode
