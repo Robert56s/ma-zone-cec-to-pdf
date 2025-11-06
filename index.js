@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * iPlus Interactif Canvas Image Backup Utility - Professional ES2023 Edition
+ * maZoneCEC Canvas Image Backup Utility - Professional ES2023 Edition
  * A modular, high-performance solution for canvas-based book backup
  * with advanced scaling capabilities and memory optimization.
  * 
- * @author Dave Erickson
+ * @author DeltaGa & Robert56s
  * @version 3.0.0
  * @requires Node.js 18+ (ES2023 features)
  * @requires Playwright ^1.40.0
@@ -354,7 +354,7 @@ class PlaywrightAutomationEngine extends EventEmitter {
     }
 
     /**
-     * Authenticate with the iPlus Interactif platform
+     * Authenticate with the maZoneCEC platform
      */
     async authenticate() {
         try {
@@ -655,7 +655,7 @@ class PDFGenerator {
 /**
  * Professional application orchestrator with comprehensive error handling
  */
-class iPlusInteractifCanvasBackupUtility extends EventEmitter {
+class maZoneCECCanvasBackupUtility extends EventEmitter {
     constructor(options = {}) {
         super();
         this.options = {
@@ -709,7 +709,7 @@ class iPlusInteractifCanvasBackupUtility extends EventEmitter {
     async run() {
         try {
             this.stats.startTime = performance.now();
-            console.log('🎨 iPlus Interactif Canvas Backup Utility v3.0 - ES2023 Edition');
+            console.log('🎨 maZoneCEC Canvas Backup Utility v3.0 - ES2023 Edition');
             console.log('=' .repeat(60));
             console.log(`📏 Scale Factor: ${this.options.scaleFactor}x`);
             console.log(`🖥️  Headless Mode: ${this.options.headless ? 'ON' : 'OFF'}`);
@@ -899,7 +899,7 @@ class CLIInterface {
 
     static printHelp() {
         console.log(`
-🎨 iPlus Interactif Canvas Backup Utility v3.0 - ES2023 Edition
+🎨 maZoneCEC Canvas Backup Utility v3.0 - ES2023 Edition
 Professional canvas-based book backup with advanced scaling
 
 USAGE:
@@ -934,8 +934,8 @@ REQUIREMENTS:
     - Sufficient disk space for high-resolution output
 
 ENVIRONMENT VARIABLES:
-    USER - iPlus Interactif username
-    PASS - iPlus Interactif password
+    USER - maZoneCEC username
+    PASS - maZoneCEC password
         `);
     }
 }
@@ -1146,7 +1146,7 @@ class ExtendedFileSystemManager extends FileSystemManager {
 /**
  * Enhanced application orchestrator with extended features
  */
-class EnhancediPlusInteractifBackupUtility extends iPlusInteractifCanvasBackupUtility {
+class EnhancedmaZoneCECBackupUtility extends maZoneCECCanvasBackupUtility {
     constructor(options = {}) {
         super(options);
         this.fileManager = new ExtendedFileSystemManager();
@@ -1200,9 +1200,9 @@ class ApplicationFactory {
         const useEnhanced = options.development || options.enhanced || false;
         
         if (useEnhanced) {
-            return new EnhancediPlusInteractifBackupUtility(options);
+            return new EnhancedmaZoneCECBackupUtility(options);
         } else {
-            return new iPlusInteractifCanvasBackupUtility(options);
+            return new maZoneCECCanvasBackupUtility(options);
         }
     }
 
@@ -1253,8 +1253,8 @@ async function main() {
  * Library-style export for programmatic usage
  */
 export {
-    iPlusInteractifCanvasBackupUtility,
-    EnhancediPlusInteractifBackupUtility,
+    maZoneCECCanvasBackupUtility,
+    EnhancedmaZoneCECBackupUtility,
     ApplicationFactory,
     Config,
     CanvasProcessor,
@@ -1313,8 +1313,8 @@ main().catch(error => {
 // ============================================================================
 
 export const VERSION = '3.0.0';
-export const AUTHOR = 'Dave Erickson';
-export const DESCRIPTION = 'Professional iPlus Interactif Canvas Backup Utility with Advanced Scaling';
+export const AUTHOR = 'DeltaGa & Robert56s';
+export const DESCRIPTION = 'Professional maZoneCEC Canvas Backup Utility with Advanced Scaling';
 
 console.log(`
 🎨 Module loaded: ${DESCRIPTION}
