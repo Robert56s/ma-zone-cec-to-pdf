@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^17.2.1",
     "pdf-lib": "^1.17.1",
     "playwright": "^1.41.1"
   }
