@@ -40,16 +40,16 @@ class Config {
     static get SELECTORS() {
         return {
             login: {
-                username: 'login_input_username',
-                password: 'login_input_password',
-                rememberMe: 'login_check_remember_me',
-                connectButton: 'login_button_connect',
+                username: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/input',
+                password: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/div[2]/input',
+                rememberMe: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/button[1]',
+                connectButton: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/button[2]',
             },
             navigation: {
                 bookTitle: `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div/div[1]/div[2]/div/div/div/button/span`,
                 openBook: `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div/div[2]/div/div[2]/div/div[1]/div[1]/div/div[1]/button/img`,
                 pageInput: `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/div[1]/input`,
-                nextButton: 'next_previous_btn_right_arrow',
+                nextButton: 'xpath=//*[@id="DocumentContainer"]/div/div[3]/div[2]/div/button',
             },
             viewer: {
                 canvasContainer: '.canvasWrapper',
@@ -360,10 +360,10 @@ class PlaywrightAutomationEngine extends EventEmitter {
         try {
             await this.page.goto(Config.AUTH.BASE_URL);
             
-            await this.page.getByTestId(Config.SELECTORS.login.username).fill(Config.AUTH.USERNAME);
-            await this.page.getByTestId(Config.SELECTORS.login.password).fill(Config.AUTH.PASSWORD);
-            await this.page.getByTestId(Config.SELECTORS.login.rememberMe).click();
-            await this.page.getByTestId(Config.SELECTORS.login.connectButton).click();
+            await this.page.locator(Config.SELECTORS.login.username).fill(Config.AUTH.USERNAME);
+            await this.page.locator(Config.SELECTORS.login.password).fill(Config.AUTH.PASSWORD);
+            await this.page.locator(Config.SELECTORS.login.rememberMe).click();
+            await this.page.locator(Config.SELECTORS.login.connectButton).click();
             
             await this.page.waitForNavigation({ timeout: Config.TIMEOUTS.navigation });
             
@@ -435,7 +435,7 @@ class PlaywrightAutomationEngine extends EventEmitter {
      */
     async navigateToNextPage() {
         try {
-            await this.page.getByTestId(Config.SELECTORS.navigation.nextButton).click();
+            await this.page.locator(Config.SELECTORS.navigation.nextButton).click();
             await TimingUtils.timeout(Config.TIMEOUTS.imageProcessing);
             return true;
         } catch (error) {
