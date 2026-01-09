@@ -1,14 +1,10 @@
 #!/usr/bin/env node
 /**
- * maZoneCEC Canvas Image Backup Utility - Professional ES2023 Edition
- * A modular, high-performance solution for canvas-based book backup
- * with advanced scaling capabilities and memory optimization.
+ * maZoneCEC Canvas Image Backup Utility - Functional Edition
+ * A clean, functional approach to canvas-based book backup
  * 
  * @author DeltaGa & Robert56s
- * @version 3.0.0
- * @requires Node.js 18+ (ES2023 features)
- * @requires Playwright ^1.40.0
- * @requires pdf-lib ^1.17.1
+ * @version 4.0.0
  */
 
 import { chromium } from 'playwright';
@@ -16,1310 +12,474 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import { PDFDocument } from 'pdf-lib';
-import { EventEmitter } from 'events';
+import readline from 'readline';
 import './loadEnv.js';
 
 // ============================================================================
-// CONFIGURATION & CONSTANTS (Atomic Global Variables)
+// CONFIGURATION
 // ============================================================================
 
-/**
- * Centralized configuration for easy adaptation to UI changes
- */
-class Config {
-    // Authentication
-    static get AUTH() {
-        return {
-            USERNAME: process.env.USER,
-            PASSWORD: process.env.PASS,
-            BASE_URL: 'https://mazonecec.com/application/login',
-        };
-    }
-
-    // Test data selectors (centralized for UI change adaptation)
-    static get SELECTORS() {
-        return {
-            login: {
-                username: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/input',
-                password: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/div[2]/input',
-                rememberMe: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/button[1]',
-                connectButton: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/button[2]',
-            },
-            navigation: {
-                bookTitle: `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div/div[1]/div[2]/div/div/div/button/span`,
-                openBook: `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div/div[2]/div/div[2]/div/div[1]/div[1]/div/div[1]/button/img`,
-                pageInput: `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/div[1]/input`,
-                nextButton: 'xpath=//*[@id="DocumentContainer"]/div/div[3]/div[2]/div/button',
-            },
-            viewer: {
-                canvasContainer: '.canvasWrapper',
-                canvas: '.canvasWrapper > canvas:nth-child(1)',
-            },
-        };
-    }
-
-    // Timing configurations
-    static get TIMEOUTS() {
-        return {
-            navigation: 3000,
-            canvasLoad: 6000,
-            pageReload: 5000,
-            imageProcessing: 2000,
-            browserLaunch: 30000,
-        };
-    }
-
-    // Processing configurations
-    static get PROCESSING() {
-        return {
-            DEFAULT_SCALE_FACTOR: 2.0, // Default 2x scaling for higher resolution
-            MAX_SCALE_FACTOR: 4.0,     // Maximum allowed scaling
-            MIN_SCALE_FACTOR: 1.0,     // Minimum scaling (original resolution)
-            RELOAD_INTERVAL: 10,       // Reload page every N pages to prevent memory leaks
-            MAX_MEMORY_USAGE: 512 * 1024 * 1024, // 512MB memory threshold
-        };
-    }
-
-    // File system
-    static get PATHS() {
-        return {
-            TEMP_DIR: './imgs',
-            SAVE_DIR: './save',
-            OUTPUT_FORMAT: 'png',
-            PDF_QUALITY: 95,
-        };
-    }
-}
-
-/**
- * Processing states and result types
- */
-class ProcessingState {
-    static RUNNING = 'running';
-    static COMPLETED = 'completed';
-    static ERROR = 'error';
-    static CANCELLED = 'cancelled';
-}
+const config = {
+    auth: {
+        username: process.env.USER,
+        password: process.env.PASS,
+        baseUrl: 'https://mazonecec.com/application/login',
+    },
+    selectors: {
+        login: {
+            username: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/input',
+            password: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/div[2]/input',
+            rememberMe: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/button[1]',
+            connectButton: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/button[2]',
+        },
+        navigation: {
+            bookContainer: `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div`,
+            bookTitle: (index) => `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div[${index}]/div/div/div[1]/div[2]/div/div/div/button/span`,
+            openBook: (index) => `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div[${index}]/div/div/div[2]/div/div[2]/div/div[1]/div[1]/div/div[1]/button/img`,
+            pageInput: `xpath=/html/body/div/div/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/div[1]/input`,
+            nextButton: 'xpath=//*[@id="DocumentContainer"]/div/div[3]/div[2]/div/button',
+        },
+        viewer: {
+            canvas: '.canvasWrapper > canvas:nth-child(1)',
+        },
+    },
+    timeouts: {
+        navigation: 3000,
+        canvasLoad: 6000,
+        pageReload: 5000,
+    },
+    processing: {
+        scaleFactor: 2.0,
+        reloadInterval: 10,
+    },
+    paths: {
+        tempDir: './imgs',
+        saveDir: './save',
+    },
+};
 
 // ============================================================================
-// UTILITY FUNCTIONS & HELPERS
+// UTILITY FUNCTIONS
 // ============================================================================
 
-/**
- * Professional timing utilities
- */
-class TimingUtils {
-    /**
-     * Promisified timeout with cancellation support
-     */
-    static timeout(ms, signal = null) {
-        return new Promise((resolve, reject) => {
-            const timeoutId = setTimeout(resolve, ms);
-            
-            if (signal) {
-                signal.addEventListener('abort', () => {
-                    clearTimeout(timeoutId);
-                    reject(new Error('Timeout cancelled'));
-                });
-            }
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const ensureDirs = () => {
+    [config.paths.tempDir, config.paths.saveDir].forEach(dir => {
+        if (!fsSync.existsSync(dir)) {
+            fsSync.mkdirSync(dir, { recursive: true });
+        }
+    });
+};
+
+const sanitizeFilename = (filename) =>
+    filename
+        .replace(/[<>:"/\\|?*]/g, '_')
+        .replace(/\s+/g, '_')
+        .substring(0, 200)
+        .trim();
+
+const askQuestion = (query) => {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
+    
+    return new Promise(resolve => {
+        rl.question(query, (answer) => {
+            rl.close();
+            resolve(answer);
         });
-    }
+    });
+};
 
-    /**
-     * Retry operation with exponential backoff
-     */
-    static async retry(operation, maxAttempts = 3, baseDelay = 1000) {
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+// ============================================================================
+// BROWSER AUTOMATION
+// ============================================================================
+
+const initBrowser = async () => {
+    const browser = await chromium.launch({ headless: false });
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    return { browser, page };
+};
+
+const login = async (page) => {
+    await page.goto(config.auth.baseUrl);
+    await page.locator(config.selectors.login.username).fill(config.auth.username);
+    await page.locator(config.selectors.login.password).fill(config.auth.password);
+    await page.locator(config.selectors.login.rememberMe).click();
+    await page.locator(config.selectors.login.connectButton).click();
+    await page.waitForNavigation();
+    console.log('✅ Logged in successfully');
+};
+
+const getBookList = async (page) => {
+    try {
+        // Wait for the book container to load
+        await wait(config.timeouts.navigation);
+        
+        // Get all book elements by counting them
+        const bookCount = await page.locator(config.selectors.navigation.bookContainer).count();
+        
+        const books = [];
+        for (let i = 1; i <= bookCount; i++) {
             try {
-                return await operation();
-            } catch (error) {
-                if (attempt === maxAttempts) throw error;
-                
-                const delay = baseDelay * Math.pow(2, attempt - 1);
-                console.warn(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
-                await this.timeout(delay);
+                const titleLocator = page.locator(config.selectors.navigation.bookTitle(i));
+                const title = await titleLocator.innerText({ timeout: 1000 });
+                books.push({ index: i, title: title.trim() });
+            } catch (e) {
+                // Skip if book element doesn't exist
             }
         }
-    }
-
-    /**
-     * Measure execution time of async operations
-     */
-    static async measure(operation, label = 'Operation') {
-        const start = performance.now();
-        try {
-            const result = await operation();
-            const duration = performance.now() - start;
-            console.debug(`${label} completed in ${duration.toFixed(2)}ms`);
-            return result;
-        } catch (error) {
-            const duration = performance.now() - start;
-            console.error(`${label} failed after ${duration.toFixed(2)}ms`);
-            throw error;
-        }
-    }
-}
-
-/**
- * Memory and performance monitoring utilities
- */
-class PerformanceMonitor {
-    constructor() {
-        this.startMemory = process.memoryUsage();
-        this.checkpoints = new Map();
-    }
-
-    checkpoint(label) {
-        this.checkpoints.set(label, {
-            memory: process.memoryUsage(),
-            timestamp: performance.now(),
-        });
-    }
-
-    getMemoryUsage() {
-        const current = process.memoryUsage();
-        return {
-            heapUsed: current.heapUsed,
-            heapTotal: current.heapTotal,
-            external: current.external,
-            rss: current.rss,
-        };
-    }
-
-    shouldReload() {
-        const memory = this.getMemoryUsage();
-        return memory.heapUsed > Config.PROCESSING.MAX_MEMORY_USAGE;
-    }
-
-    logStats(label = 'Current') {
-        const memory = this.getMemoryUsage();
-        console.info(`${label} Memory: ${Math.round(memory.heapUsed / 1024 / 1024)}MB heap, ${Math.round(memory.rss / 1024 / 1024)}MB RSS`);
-    }
-}
-
-// ============================================================================
-// CANVAS PROCESSING ENGINE
-// ============================================================================
-
-/**
- * Advanced canvas processing with scaling capabilities
- */
-class CanvasProcessor {
-    constructor(scaleFactor = Config.PROCESSING.DEFAULT_SCALE_FACTOR) {
-        this.scaleFactor = this.validateScaleFactor(scaleFactor);
-        this.logger = console; // Could be replaced with proper logging framework
-    }
-
-    validateScaleFactor(factor) {
-        const numericFactor = parseFloat(factor);
         
-        if (isNaN(numericFactor) || numericFactor <= 0) {
-            this.logger.warn(`Invalid scale factor ${factor}, using default ${Config.PROCESSING.DEFAULT_SCALE_FACTOR}`);
-            return Config.PROCESSING.DEFAULT_SCALE_FACTOR;
-        }
-
-        if (numericFactor > Config.PROCESSING.MAX_SCALE_FACTOR) {
-            this.logger.warn(`Scale factor ${factor} exceeds maximum, capping at ${Config.PROCESSING.MAX_SCALE_FACTOR}`);
-            return Config.PROCESSING.MAX_SCALE_FACTOR;
-        }
-
-        if (numericFactor < Config.PROCESSING.MIN_SCALE_FACTOR) {
-            this.logger.warn(`Scale factor ${factor} below minimum, setting to ${Config.PROCESSING.MIN_SCALE_FACTOR}`);
-            return Config.PROCESSING.MIN_SCALE_FACTOR;
-        }
-
-        return numericFactor;
+        return books;
+    } catch (error) {
+        console.error('Failed to get book list:', error.message);
+        return [];
     }
+};
 
-    /**
-     * Extract canvas data with optional scaling
-     * @param {Page} page - Playwright page object
-     * @returns {Promise<{base64: string, width: number, height: number}>}
-     */
-    async extractCanvasData(page) {
-        return await TimingUtils.measure(async () => {
-            return await page.evaluate((scaleFactor) => {
-                const canvas = document.getElementsByTagName('canvas')[0];
-                if (!canvas) {
-                    throw new Error('No canvas element found on page');
-                }
-
-                // Get original dimensions
-                const originalWidth = canvas.width;
-                const originalHeight = canvas.height;
-                
-                // Calculate scaled dimensions
-                const scaledWidth = Math.floor(originalWidth * scaleFactor);
-                const scaledHeight = Math.floor(originalHeight * scaleFactor);
-
-                // Create high-resolution canvas
-                const scaledCanvas = document.createElement('canvas');
-                scaledCanvas.width = scaledWidth;
-                scaledCanvas.height = scaledHeight;
-                
-                const scaledCtx = scaledCanvas.getContext('2d');
-                
-                // Configure high-quality rendering
-                scaledCtx.imageSmoothingEnabled = true;
-                scaledCtx.imageSmoothingQuality = 'high';
-                
-                // Draw original canvas onto scaled canvas
-                scaledCtx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight);
-                
-                // Extract base64 data with optimal compression
-                const base64Data = scaledCanvas.toDataURL('image/png', 0.95).split(';base64,')[1];
-                
-                return {
-                    base64: base64Data,
-                    width: scaledWidth,
-                    height: scaledHeight,
-                    originalWidth,
-                    originalHeight,
-                    scaleFactor,
-                };
-            }, this.scaleFactor);
-        }, `Canvas extraction (${this.scaleFactor}x)`);
+const selectBook = async (page, books) => {
+    if (books.length === 0) {
+        throw new Error('No books found in your account');
     }
+    
+    // Display all books with numbers
+    console.log('\n📚 Available books:');
+    books.forEach((book, idx) => {
+        console.log(`${book.title} (${idx + 1})`);
+    });
+    console.log('');
+    
+    const choice = await askQuestion('Select book number (or q to quit): ');
+    const input = choice.trim().toLowerCase();
+    
+    // Check for quit
+    if (input === 'q' || input === 'quit') {
+        return null;
+    }
+    
+    const selectedIndex = parseInt(input) - 1;
+    
+    if (selectedIndex < 0 || selectedIndex >= books.length || isNaN(selectedIndex)) {
+        console.log('Invalid selection, please try again');
+        return await selectBook(page, books);
+    }
+    
+    return books[selectedIndex];
+};
 
-    /**
-     * Validate canvas availability and readiness
-     */
-    async waitForCanvas(page, timeout = Config.TIMEOUTS.canvasLoad) {
-        try {
-            await page.locator(Config.SELECTORS.viewer.canvas).waitFor({ timeout });
-            
-            // Additional validation - ensure canvas has content
-            const hasContent = await page.evaluate(() => {
-                const canvas = document.getElementsByTagName('canvas')[0];
-                return canvas && canvas.width > 0 && canvas.height > 0;
-            });
-
-            if (!hasContent) {
-                throw new Error('Canvas exists but appears empty');
+const openBook = async (page, bookIndex) => {
+    await page.locator(config.selectors.navigation.openBook(bookIndex)).click();
+    await page.waitForNavigation();
+    await wait(config.timeouts.navigation);
+    
+    // If view is multipage, switch to single page
+    try {
+        const extraSelector = 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div[1]/div/div/div[1]/div[2]/div[2]/div[1]/div/button/div';
+        const extraLoc = page.locator(extraSelector);
+        if (await extraLoc.count() > 0) {
+            try {
+                await extraLoc.first().click({ timeout: 2000 });
+                await wait(config.timeouts.navigation);
+            } catch (clickErr) {
+                // ignore click errors and continue
             }
-
-            await TimingUtils.timeout(Config.TIMEOUTS.canvasLoad);
-            return true;
-        } catch (error) {
-            this.logger.error(`Canvas validation failed: ${error.message}`);
-            return false;
         }
-    }
-}
-
-// ============================================================================
-// PLAYWRIGHT AUTOMATION ENGINE
-// ============================================================================
-
-/**
- * Professional Playwright automation with advanced error handling
- */
-class PlaywrightAutomationEngine extends EventEmitter {
-    constructor(options = {}) {
-        super();
-        this.browser = null;
-        this.page = null;
-        this.canvasProcessor = new CanvasProcessor(options.scaleFactor);
-        this.performanceMonitor = new PerformanceMonitor();
-        this.options = {
-            headless: options.headless ?? false,
-            slowMo: options.slowMo ?? 100,
-            timeout: options.timeout ?? Config.TIMEOUTS.browserLaunch,
-            ...options,
-        };
+    } catch (err) {
+        // ignore detection errors and continue
     }
 
-    /**
-     * Initialize browser and page
-     */
-    async initialize() {
-        try {
-            this.browser = await chromium.launch({
-                headless: this.options.headless,
-                slowMo: this.options.slowMo,
-                timeout: this.options.timeout,
-            });
+    // Navigate to cover page
+    const pageInput = page.locator(config.selectors.navigation.pageInput);
+    await pageInput.fill('C1');
+    await pageInput.press('Enter');
+    await wait(config.timeouts.navigation);
+};
 
-            this.page = await this.browser.newPage();
-            
-            // Configure page settings
-            await this.page.setViewportSize({ width: 1920, height: 1080 });
-            
-            this.emit('initialized');
-            return true;
-        } catch (error) {
-            this.emit('error', error);
-            throw new Error(`Browser initialization failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Authenticate with the maZoneCEC platform
-     */
-    async authenticate() {
-        try {
-            await this.page.goto(Config.AUTH.BASE_URL);
-            
-            await this.page.locator(Config.SELECTORS.login.username).fill(Config.AUTH.USERNAME);
-            await this.page.locator(Config.SELECTORS.login.password).fill(Config.AUTH.PASSWORD);
-            await this.page.locator(Config.SELECTORS.login.rememberMe).click();
-            await this.page.locator(Config.SELECTORS.login.connectButton).click();
-            
-            await this.page.waitForNavigation({ timeout: Config.TIMEOUTS.navigation });
-            
-            this.emit('authenticated');
-            return true;
-        } catch (error) {
-            this.emit('error', error);
-            throw new Error(`Authentication failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Discover and select book for processing
-     */
-    async discoverBook() {
-        try {
-            const bookName = await this.page.locator(Config.SELECTORS.navigation.bookTitle).innerText();
-            
-            await this.page.locator(Config.SELECTORS.navigation.openBook).click();
-            await this.page.waitForNavigation({ timeout: Config.TIMEOUTS.navigation });
-            
-            // Navigate to cover page
-            const pageInput = this.page.locator(Config.SELECTORS.navigation.pageInput);
-            await pageInput.fill('C1');
-            await pageInput.press('Enter');
-            
-            await TimingUtils.timeout(Config.TIMEOUTS.navigation);
-            
-            this.emit('bookSelected', { bookName });
-            return bookName.trim();
-        } catch (error) {
-            this.emit('error', error);
-            throw new Error(`Book discovery failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Process a single page with advanced error handling
-     */
-    async processPage(pageNumber) {
-        try {
-            // Wait for canvas to be ready
-            const canvasReady = await this.canvasProcessor.waitForCanvas(this.page);
-            if (!canvasReady) {
-                throw new Error('Canvas not ready for processing');
-            }
-
-            // Extract canvas data with scaling
-            const canvasData = await this.canvasProcessor.extractCanvasData(this.page);
-            
-            this.emit('pageProcessed', {
-                pageNumber,
-                dimensions: {
-                    width: canvasData.width,
-                    height: canvasData.height,
-                    scaleFactor: canvasData.scaleFactor,
-                },
-            });
-
-            return canvasData;
-        } catch (error) {
-            this.emit('pageError', { pageNumber, error });
-            throw error;
-        }
-    }
-
-    /**
-     * Navigate to next page with intelligent error handling
-     */
-    async navigateToNextPage() {
-        try {
-            await this.page.locator(Config.SELECTORS.navigation.nextButton).click();
-            await TimingUtils.timeout(Config.TIMEOUTS.imageProcessing);
-            return true;
-        } catch (error) {
-            // End of book reached
-            return false;
-        }
-    }
-
-    /**
-     * Perform intelligent page reload to manage memory
-     */
-    async performMaintenanceReload() {
-        try {
-            // Capture current page number
-            var pageInput = this.page.locator(Config.SELECTORS.navigation.pageInput)
-            const currentPage = await pageInput.inputValue();
-
-            await this.page.reload({ timeout: Config.TIMEOUTS.pageReload });
-            await TimingUtils.timeout(Config.TIMEOUTS.navigation);
-            
-            // Re-navigate to current position if needed
-            pageInput = this.page.locator(Config.SELECTORS.navigation.pageInput);
-            await pageInput.fill(currentPage);
-            await pageInput.press('Enter');
-            
-            this.performanceMonitor.checkpoint('post-reload');
-            this.emit('pageReloaded');
-        } catch (error) {
-            this.emit('reloadError', error);
-            throw new Error(`Maintenance reload failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Cleanup resources
-     */
-    async cleanup() {
-        try {
-            if (this.page) {
-                await this.page.close();
-            }
-            if (this.browser) {
-                await this.browser.close();
-            }
-            this.emit('cleanup');
-        } catch (error) {
-            this.emit('error', error);
-        }
-    }
-}
-
-// ============================================================================
-// FILE SYSTEM MANAGEMENT
-// ============================================================================
-
-/**
- * Professional file system operations with atomic guarantees
- */
-class FileSystemManager {
-    constructor() {
-        this.ensureDirectories();
-    }
-
-    /**
-     * Ensure required directories exist
-     */
-    ensureDirectories() {
-        [Config.PATHS.TEMP_DIR, Config.PATHS.SAVE_DIR].forEach(dir => {
-            if (!fsSync.existsSync(dir)) {
-                fsSync.mkdirSync(dir, { recursive: true });
-            }
-        });
-    }
-
-    /**
-     * Save image data with atomic write operations
-     */
-    async saveImage(pageNumber, base64Data) {
-        const filename = `${pageNumber}.${Config.PATHS.OUTPUT_FORMAT}`;
-        const filepath = path.join(Config.PATHS.TEMP_DIR, filename);
+const extractCanvasData = async (page) => {
+    await page.locator(config.selectors.viewer.canvas).waitFor();
+    await wait(config.timeouts.canvasLoad);
+    
+    return await page.evaluate((scaleFactor) => {
+        const canvas = document.getElementsByTagName('canvas')[0];
+        if (!canvas) throw new Error('No canvas found');
         
-        try {
-            await fs.writeFile(filepath, base64Data, 'base64');
-            return filepath;
-        } catch (error) {
-            throw new Error(`Failed to save image ${filename}: ${error.message}`);
-        }
-    }
-
-    /**
-     * Create backup of processed images
-     */
-    async createBackup(bookName) {
-        const sanitizedName = this.sanitizeFilename(bookName);
-        const backupPath = path.join(Config.PATHS.SAVE_DIR, sanitizedName);
+        const scaledCanvas = document.createElement('canvas');
+        scaledCanvas.width = Math.floor(canvas.width * scaleFactor);
+        scaledCanvas.height = Math.floor(canvas.height * scaleFactor);
         
-        try {
-            // Ensure backup directory exists
-            await fs.mkdir(backupPath, { recursive: true });
-            
-            // Copy all images to backup location
-            const imageFiles = await fs.readdir(Config.PATHS.TEMP_DIR);
-            
-            for (const file of imageFiles) {
-                const sourcePath = path.join(Config.PATHS.TEMP_DIR, file);
-                const destPath = path.join(backupPath, file);
-                await fs.copyFile(sourcePath, destPath);
-            }
-            
-            return backupPath;
-        } catch (error) {
-            throw new Error(`Backup creation failed: ${error.message}`);
-        }
-    }
+        const ctx = scaledCanvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(canvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
+        
+        return scaledCanvas.toDataURL('image/png').split(';base64,')[1];
+    }, config.processing.scaleFactor);
+};
 
-    /**
-     * Clean up temporary files
-     */
-    async cleanup() {
-        try {
-            const files = await fs.readdir(Config.PATHS.TEMP_DIR);
-            await Promise.all(
-                files.map(file => 
-                    fs.unlink(path.join(Config.PATHS.TEMP_DIR, file))
-                )
-            );
-        } catch (error) {
-            console.warn(`Cleanup warning: ${error.message}`);
-        }
+const goToNextPage = async (page) => {
+    try {
+        await page.locator(config.selectors.navigation.nextButton).click();
+        await wait(config.timeouts.navigation);
+        return true;
+    } catch (error) {
+        return false;
     }
+};
 
-    /**
-     * Sanitize filename for cross-platform compatibility
-     */
-    sanitizeFilename(filename) {
-        return filename
-            .replace(/[<>:"/\\|?*]/g, '_')
-            .replace(/\s+/g, '_')
-            .substring(0, 200)
-            .trim();
-    }
-}
+const reloadPage = async (page, currentPageNumber) => {
+    const pageInput = page.locator(config.selectors.navigation.pageInput);
+    const currentPage = await pageInput.inputValue();
+    
+    await page.reload();
+    await wait(config.timeouts.pageReload);
+    
+    await pageInput.fill(currentPage);
+    await pageInput.press('Enter');
+    await wait(config.timeouts.navigation);
+    
+    console.log('🔄 Page reloaded for memory management');
+};
 
 // ============================================================================
-// PDF GENERATION ENGINE
+// FILE OPERATIONS
 // ============================================================================
 
-/**
- * High-performance PDF generation with memory optimization
- */
-class PDFGenerator {
-    constructor() {
-        this.document = null;
-    }
+const saveImage = async (pageNumber, base64Data) => {
+    const filename = `${pageNumber}.png`;
+    const filepath = path.join(config.paths.tempDir, filename);
+    await fs.writeFile(filepath, base64Data, 'base64');
+    return filepath;
+};
 
-    /**
-     * Initialize PDF document
-     */
-    async initialize() {
-        this.document = await PDFDocument.create();
+const moveToBackup = async (bookName) => {
+    const backupPath = path.join(config.paths.saveDir, sanitizeFilename(bookName));
+    await fs.mkdir(backupPath, { recursive: true });
+    
+    const files = await fs.readdir(config.paths.tempDir);
+    for (const file of files) {
+        const sourcePath = path.join(config.paths.tempDir, file);
+        const destPath = path.join(backupPath, file);
+        await fs.copyFile(sourcePath, destPath);
     }
+    
+    return backupPath;
+};
 
-    /**
-     * Add page to PDF with optimized image handling
-     */
-    async addPage(base64Data, metadata = {}) {
+const cleanupTemp = async () => {
+    try {
+        const files = await fs.readdir(config.paths.tempDir);
+        await Promise.all(
+            files.map(file => fs.unlink(path.join(config.paths.tempDir, file)))
+        );
+    } catch (error) {
+        // Ignore cleanup errors
+    }
+};
+
+// ============================================================================
+// PDF GENERATION
+// ============================================================================
+
+const createPDF = async (bookName, pageCount) => {
+    const pdfDoc = await PDFDocument.create();
+    
+    for (let i = 1; i <= pageCount; i++) {
         try {
-            const page = this.document.addPage();
-            const image = await this.document.embedPng(base64Data);
+            const imagePath = path.join(config.paths.tempDir, `${i}.png`);
+            const imageData = await fs.readFile(imagePath);
             
-            // Calculate optimal dimensions while maintaining aspect ratio
+            const page = pdfDoc.addPage();
+            const image = await pdfDoc.embedPng(imageData);
+            
             const { width: imgWidth, height: imgHeight } = image;
             const { width: pageWidth, height: pageHeight } = page.getSize();
             
-            const scaleX = pageWidth / imgWidth;
-            const scaleY = pageHeight / imgHeight;
-            const scale = Math.min(scaleX, scaleY);
-            
+            const scale = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
             const drawWidth = imgWidth * scale;
             const drawHeight = imgHeight * scale;
             
-            // Center the image on the page
-            const x = (pageWidth - drawWidth) / 2;
-            const y = (pageHeight - drawHeight) / 2;
-            
             page.drawImage(image, {
-                x,
-                y,
+                x: (pageWidth - drawWidth) / 2,
+                y: (pageHeight - drawHeight) / 2,
                 width: drawWidth,
                 height: drawHeight,
             });
-            
-            return page;
         } catch (error) {
-            throw new Error(`Failed to add page to PDF: ${error.message}`);
+            console.warn(`⚠️  Failed to add page ${i} to PDF:`, error.message);
         }
     }
-
-    /**
-     * Finalize and save PDF
-     */
-    async finalize(filename) {
-        try {
-            const pdfBytes = await this.document.save();
-            await fs.writeFile(filename, pdfBytes);
-            return filename;
-        } catch (error) {
-            throw new Error(`PDF finalization failed: ${error.message}`);
-        }
-    }
-}
-
-// ============================================================================
-// MAIN APPLICATION ORCHESTRATOR
-// ============================================================================
-
-/**
- * Professional application orchestrator with comprehensive error handling
- */
-class maZoneCECCanvasBackupUtility extends EventEmitter {
-    constructor(options = {}) {
-        super();
-        this.options = {
-            scaleFactor: options.scaleFactor ?? Config.PROCESSING.DEFAULT_SCALE_FACTOR,
-            headless: options.headless ?? false,
-            generatePDF: options.generatePDF ?? true,
-            ...options,
-        };
-        
-        this.automation = new PlaywrightAutomationEngine({
-            scaleFactor: this.options.scaleFactor,
-            headless: this.options.headless,
-        });
-        
-        this.fileManager = new FileSystemManager();
-        this.pdfGenerator = new PDFGenerator();
-        this.performanceMonitor = new PerformanceMonitor();
-        
-        this.setupEventHandlers();
-        this.stats = {
-            startTime: null,
-            endTime: null,
-            pagesProcessed: 0,
-            errorsEncountered: 0,
-            bookName: null,
-        };
-    }
-
-    /**
-     * Setup event handlers for comprehensive monitoring
-     */
-    setupEventHandlers() {
-        this.automation.on('pageProcessed', (data) => {
-            this.stats.pagesProcessed++;
-            console.log(`📄 Page ${data.pageNumber} processed (${data.dimensions.width}x${data.dimensions.height} @ ${data.dimensions.scaleFactor}x)`);
-        });
-
-        this.automation.on('pageError', (data) => {
-            this.stats.errorsEncountered++;
-            console.error(`❌ Error on page ${data.pageNumber}: ${data.error.message}`);
-        });
-
-        this.automation.on('pageReloaded', () => {
-            console.log('🔄 Maintenance reload completed');
-        });
-    }
-
-    /**
-     * Execute the complete backup workflow
-     */
-    async run() {
-        try {
-            this.stats.startTime = performance.now();
-            console.log('🎨 maZoneCEC Canvas Backup Utility v3.0 - ES2023 Edition');
-            console.log('=' .repeat(60));
-            console.log(`📏 Scale Factor: ${this.options.scaleFactor}x`);
-            console.log(`🖥️  Headless Mode: ${this.options.headless ? 'ON' : 'OFF'}`);
-            console.log(`📚 PDF Generation: ${this.options.generatePDF ? 'ENABLED' : 'DISABLED'}`);
-            console.log('=' .repeat(60));
-
-            // Phase 1: Initialize automation
-            console.log('🚀 Initializing automation engine...');
-            await this.automation.initialize();
-
-            // Phase 2: Authentication
-            console.log('🔐 Authenticating...');
-            await this.automation.authenticate();
-
-            // Phase 3: Book discovery
-            console.log('📚 Discovering book...');
-            const bookName = await this.automation.discoverBook();
-            this.stats.bookName = bookName;
-            console.log(`📖 Processing: "${bookName}"`);
-
-            // Phase 4: PDF initialization
-            if (this.options.generatePDF) {
-                await this.pdfGenerator.initialize();
-            }
-
-            // Phase 5: Page processing loop
-            console.log('⚡ Starting page processing...');
-            await this.processAllPages();
-
-            // Phase 6: Finalization
-            await this.finalizeOutput();
-
-            this.stats.endTime = performance.now();
-            this.printSummary();
-            
-            return true;
-
-        } catch (error) {
-            console.error(`💥 Critical error: ${error.message}`);
-            return false;
-        } finally {
-            await this.cleanup();
-        }
-    }
-
-    /**
-     * Process all pages in the book
-     */
-    async processAllPages() {
-        let pageNumber = 1;
-        let hasNextPage = true;
-
-        while (hasNextPage) {
-            try {
-                // Memory management - reload page periodically
-                if (pageNumber > 1 && pageNumber % Config.PROCESSING.RELOAD_INTERVAL === 0) {
-                    console.log('🧹 Performing maintenance reload...');
-                    await this.automation.performMaintenanceReload();
-                    this.performanceMonitor.logStats('Post-reload');
-                }
-
-                // Process current page
-                const canvasData = await this.automation.processPage(pageNumber);
-                
-                // Save image
-                await this.fileManager.saveImage(pageNumber, canvasData.base64);
-                
-                // Add to PDF if enabled
-                if (this.options.generatePDF) {
-                    await this.pdfGenerator.addPage(canvasData.base64, {
-                        pageNumber,
-                        scaleFactor: canvasData.scaleFactor,
-                    });
-                }
-
-                // Navigate to next page
-                hasNextPage = await this.automation.navigateToNextPage();
-                pageNumber++;
-
-            } catch (error) {
-                console.error(`⚠️  Page ${pageNumber} processing failed: ${error.message}`);
-                this.stats.errorsEncountered++;
-                
-                // Try to continue with next page
-                try {
-                    hasNextPage = await this.automation.navigateToNextPage();
-                    pageNumber++;
-                } catch (navError) {
-                    console.log('📚 End of book reached');
-                    hasNextPage = false;
-                }
-            }
-        }
-    }
-
-    /**
-     * Finalize output generation
-     */
-    async finalizeOutput() {
-        console.log('🏁 Finalizing output...');
-
-        // Generate PDF if enabled
-        if (this.options.generatePDF && this.stats.pagesProcessed > 0) {
-            const pdfFilename = `${this.fileManager.sanitizeFilename(this.stats.bookName)}.pdf`;
-            await this.pdfGenerator.finalize(pdfFilename);
-            console.log(`📄 PDF saved: ${pdfFilename}`);
-        }
-
-        // Create backup
-        const backupPath = await this.fileManager.createBackup(this.stats.bookName);
-        console.log(`💾 Backup created: ${backupPath}`);
-    }
-
-    /**
-     * Print processing summary
-     */
-    printSummary() {
-        const duration = (this.stats.endTime - this.stats.startTime) / 1000;
-        
-        console.log('\n' + '=' .repeat(60));
-        console.log('📊 PROCESSING SUMMARY');
-        console.log('=' .repeat(60));
-        console.log(`📖 Book: ${this.stats.bookName}`);
-        console.log(`📄 Pages Processed: ${this.stats.pagesProcessed}`);
-        console.log(`⚠️  Errors: ${this.stats.errorsEncountered}`);
-        console.log(`📏 Scale Factor: ${this.options.scaleFactor}x`);
-        console.log(`⏱️  Duration: ${duration.toFixed(2)} seconds`);
-        console.log(`📈 Average: ${(this.stats.pagesProcessed / duration).toFixed(2)} pages/second`);
-        this.performanceMonitor.logStats('Final');
-        console.log('🎉 Processing completed successfully!');
-        console.log('=' .repeat(60));
-    }
-
-    /**
-     * Cleanup resources
-     */
-    async cleanup() {
-        try {
-            await this.automation.cleanup();
-            await this.fileManager.cleanup();
-        } catch (error) {
-            console.warn(`Cleanup warning: ${error.message}`);
-        }
-    }
-}
-
-// ============================================================================
-// CLI INTERFACE & APPLICATION ENTRY POINT
-// ============================================================================
-
-/**
- * Command-line interface with argument parsing
- */
-class CLIInterface {
-    static parseArguments() {
-        const args = process.argv.slice(2);
-        const options = {
-            scaleFactor: Config.PROCESSING.DEFAULT_SCALE_FACTOR,
-            headless: false,
-            generatePDF: true,
-        };
-
-        for (let i = 0; i < args.length; i++) {
-            const arg = args[i];
-            
-            switch (arg) {
-                case '--scale':
-                case '-s':
-                    options.scaleFactor = parseFloat(args[++i]) || Config.PROCESSING.DEFAULT_SCALE_FACTOR;
-                    break;
-                case '--headless':
-                case '-h':
-                    options.headless = true;
-                    break;
-                case '--no-pdf':
-                    options.generatePDF = false;
-                    break;
-                case '--help':
-                    this.printHelp();
-                    process.exit(0);
-                    break;
-            }
-        }
-
-        return options;
-    }
-
-    static printHelp() {
-        console.log(`
-🎨 maZoneCEC Canvas Backup Utility v3.0 - ES2023 Edition
-Professional canvas-based book backup with advanced scaling
-
-USAGE:
-    node backup-utility.js [OPTIONS]
-
-OPTIONS:
-    -s, --scale FACTOR      Set canvas scaling factor (1.0-4.0, default: 2.0)
-                           Higher values produce higher resolution images
     
-    -h, --headless         Run browser in headless mode (no GUI)
+    const pdfFilename = `${sanitizeFilename(bookName)}.pdf`;
+    const pdfBytes = await pdfDoc.save();
+    await fs.writeFile(pdfFilename, pdfBytes);
     
-    --no-pdf              Skip PDF generation, save only individual images
-    
-    --help                Show this help message and exit
-
-EXAMPLES:
-    node backup-utility.js                   # Default 2x scaling with PDF
-    node backup-utility.js -s 3.0            # 3x scaling for ultra-high resolution
-    node backup-utility.js -h --scale 1.5    # Headless mode with 1.5x scaling
-    node backup-utility.js --no-pdf -s 4.0   # Maximum scaling, images only
-
-SCALING GUIDE:
-    1.0x - Original canvas resolution
-    2.0x - Double resolution (recommended for most use cases)
-    3.0x - Triple resolution (high quality prints)
-    4.0x - Maximum resolution (professional archival)
-
-REQUIREMENTS:
-    - Node.js 18+ with ES2023 support
-    - Playwright browser automation
-    - Valid credentials in environment variables
-    - Sufficient disk space for high-resolution output
-
-ENVIRONMENT VARIABLES:
-    USER - maZoneCEC username
-    PASS - maZoneCEC password
-        `);
-    }
-}
-
-/**
- * Professional error handling and graceful shutdown
- */
-class ErrorHandler {
-    static setupGlobalHandlers() {
-        process.on('uncaughtException', (error) => {
-            console.error('💥 Uncaught Exception:', error.message);
-            console.error('Stack:', error.stack);
-            process.exit(1);
-        });
-
-        process.on('unhandledRejection', (reason, promise) => {
-            console.error('💥 Unhandled Rejection at:', promise);
-            console.error('Reason:', reason);
-            process.exit(1);
-        });
-
-        process.on('SIGINT', () => {
-            console.log('\n🛑 Received SIGINT, shutting down gracefully...');
-            process.exit(0);
-        });
-
-        process.on('SIGTERM', () => {
-            console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
-            process.exit(0);
-        });
-    }
-
-    static validateEnvironment() {
-        const requiredVars = ['USER', 'PASS'];
-        const missing = requiredVars.filter(varName => !process.env[varName]);
-        
-        if (missing.length > 0) {
-            console.error('❌ Missing required environment variables:', missing.join(', '));
-            console.error('Please set these variables in your .env file or environment');
-            process.exit(1);
-        }
-    }
-}
-
-/**
- * Development and debugging utilities
- */
-class DevUtils {
-    /**
-     * Memory usage tracking for development
-     */
-    static trackMemory(label = 'Memory Check') {
-        const usage = process.memoryUsage();
-        console.debug(`[${label}] Memory: ${Math.round(usage.heapUsed / 1024 / 1024)}MB heap, ${Math.round(usage.rss / 1024 / 1024)}MB RSS`);
-    }
-
-    /**
-     * Performance benchmark wrapper
-     */
-    static async benchmark(operation, label = 'Operation') {
-        const start = process.hrtime.bigint();
-        const result = await operation();
-        const end = process.hrtime.bigint();
-        
-        const duration = Number(end - start) / 1e6; // Convert to milliseconds
-        console.debug(`[BENCHMARK] ${label}: ${duration.toFixed(2)}ms`);
-        
-        return result;
-    }
-
-    /**
-     * Debug canvas information
-     */
-    static async debugCanvas(page) {
-        const canvasInfo = await page.evaluate(() => {
-            const canvas = document.getElementsByTagName('canvas')[0];
-            if (!canvas) return null;
-            
-            return {
-                width: canvas.width,
-                height: canvas.height,
-                clientWidth: canvas.clientWidth,
-                clientHeight: canvas.clientHeight,
-                style: {
-                    width: canvas.style.width,
-                    height: canvas.style.height,
-                },
-                hasContent: canvas.toDataURL().length > 1000, // Basic content check
-            };
-        });
-        
-        console.debug('[DEBUG] Canvas Info:', JSON.stringify(canvasInfo, null, 2));
-        return canvasInfo;
-    }
-}
-
-/**
- * Extended file system utilities for advanced operations
- */
-class ExtendedFileSystemManager extends FileSystemManager {
-    /**
-     * Get detailed statistics about processed files
-     */
-    async getProcessingStats() {
-        try {
-            const files = await fs.readdir(Config.PATHS.TEMP_DIR);
-            const imageFiles = files.filter(file => file.endsWith(`.${Config.PATHS.OUTPUT_FORMAT}`));
-            
-            let totalSize = 0;
-            const fileStats = [];
-            
-            for (const file of imageFiles) {
-                const filepath = path.join(Config.PATHS.TEMP_DIR, file);
-                const stats = await fs.stat(filepath);
-                totalSize += stats.size;
-                
-                fileStats.push({
-                    filename: file,
-                    size: stats.size,
-                    created: stats.birthtime,
-                });
-            }
-            
-            return {
-                fileCount: imageFiles.length,
-                totalSize,
-                averageSize: totalSize / imageFiles.length,
-                files: fileStats.sort((a, b) => {
-                    const aNum = parseInt(a.filename.split('.')[0]);
-                    const bNum = parseInt(b.filename.split('.')[0]);
-                    return aNum - bNum;
-                }),
-            };
-        } catch (error) {
-            console.warn(`Stats collection failed: ${error.message}`);
-            return null;
-        }
-    }
-
-    /**
-     * Generate metadata file for the backup
-     */
-    async generateMetadata(bookName, processingStats, options) {
-        const metadata = {
-            book: {
-                name: bookName,
-                processedAt: new Date().toISOString(),
-            },
-            processing: {
-                scaleFactor: options.scaleFactor,
-                pagesProcessed: processingStats.pagesProcessed,
-                errorsEncountered: processingStats.errorsEncountered,
-                duration: processingStats.endTime - processingStats.startTime,
-            },
-            system: {
-                nodeVersion: process.version,
-                platform: process.platform,
-                arch: process.arch,
-                memory: process.memoryUsage(),
-            },
-            files: await this.getProcessingStats(),
-        };
-
-        const metadataPath = path.join(Config.PATHS.SAVE_DIR, this.sanitizeFilename(bookName), 'metadata.json');
-        
-        try {
-            await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
-            console.log(`📋 Metadata saved: ${metadataPath}`);
-            return metadataPath;
-        } catch (error) {
-            console.warn(`Metadata generation failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Verify integrity of saved files
-     */
-    async verifyIntegrity() {
-        try {
-            const files = await fs.readdir(Config.PATHS.TEMP_DIR);
-            const imageFiles = files.filter(file => file.endsWith(`.${Config.PATHS.OUTPUT_FORMAT}`));
-            
-            let corruptedFiles = 0;
-            
-            for (const file of imageFiles) {
-                const filepath = path.join(Config.PATHS.TEMP_DIR, file);
-                const stats = await fs.stat(filepath);
-                
-                // Basic integrity check - ensure file is not empty or suspiciously small
-                if (stats.size < 1000) { // Less than 1KB is likely corrupted
-                    console.warn(`⚠️  Potentially corrupted file: ${file} (${stats.size} bytes)`);
-                    corruptedFiles++;
-                }
-            }
-            
-            return {
-                totalFiles: imageFiles.length,
-                corruptedFiles,
-                integrityScore: ((imageFiles.length - corruptedFiles) / imageFiles.length) * 100,
-            };
-        } catch (error) {
-            console.warn(`Integrity verification failed: ${error.message}`);
-            return null;
-        }
-    }
-}
-
-/**
- * Enhanced application orchestrator with extended features
- */
-class EnhancedmaZoneCECBackupUtility extends maZoneCECCanvasBackupUtility {
-    constructor(options = {}) {
-        super(options);
-        this.fileManager = new ExtendedFileSystemManager();
-        this.isDevelopment = options.development ?? false;
-    }
-
-    /**
-     * Enhanced finalization with metadata and verification
-     */
-    async finalizeOutput() {
-        console.log('🏁 Finalizing output with enhanced features...');
-
-        // Generate PDF if enabled
-        if (this.options.generatePDF && this.stats.pagesProcessed > 0) {
-            const pdfFilename = `${this.fileManager.sanitizeFilename(this.stats.bookName)}.pdf`;
-            await this.pdfGenerator.finalize(pdfFilename);
-            console.log(`📄 PDF saved: ${pdfFilename}`);
-        }
-
-        // Verify file integrity
-        const integrity = await this.fileManager.verifyIntegrity();
-        if (integrity) {
-            console.log(`🔍 File integrity: ${integrity.integrityScore.toFixed(1)}% (${integrity.totalFiles - integrity.corruptedFiles}/${integrity.totalFiles} files)`);
-        }
-
-        // Create backup with enhanced features
-        const backupPath = await this.fileManager.createBackup(this.stats.bookName);
-        console.log(`💾 Backup created: ${backupPath}`);
-
-        // Generate metadata
-        await this.fileManager.generateMetadata(this.stats.bookName, this.stats, this.options);
-
-        // Development mode extras
-        if (this.isDevelopment) {
-            DevUtils.trackMemory('Final Memory Usage');
-            const fileStats = await this.fileManager.getProcessingStats();
-            if (fileStats) {
-                console.log(`📊 Average file size: ${Math.round(fileStats.averageSize / 1024)}KB`);
-                console.log(`💿 Total storage used: ${Math.round(fileStats.totalSize / 1024 / 1024)}MB`);
-            }
-        }
-    }
-}
-
-/**
- * Application factory for creating configured instances
- */
-class ApplicationFactory {
-    static create(options = {}) {
-        // Determine if we should use enhanced features
-        const useEnhanced = options.development || options.enhanced || false;
-        
-        if (useEnhanced) {
-            return new EnhancedmaZoneCECBackupUtility(options);
-        } else {
-            return new maZoneCECCanvasBackupUtility(options);
-        }
-    }
-
-    static createFromCLI() {
-        const options = CLIInterface.parseArguments();
-        return this.create(options);
-    }
-}
-
-// ============================================================================
-// APPLICATION ENTRY POINT & MAIN EXECUTION
-// ============================================================================
-
-/**
- * Main application entry point
- */
-async function main() {
-    // Setup error handling
-    ErrorHandler.setupGlobalHandlers();
-    
-    // Validate environment
-    ErrorHandler.validateEnvironment();
-    
-    try {
-        // Create and configure application
-        const app = ApplicationFactory.createFromCLI();
-        
-        // Execute the backup process
-        const success = await app.run();
-        
-        // Exit with appropriate code
-        process.exit(success ? 0 : 1);
-        
-    } catch (error) {
-        console.error('💥 Application failed to start:', error.message);
-        if (process.env.NODE_ENV === 'development') {
-            console.error('Stack trace:', error.stack);
-        }
-        process.exit(1);
-    }
-}
-
-// ============================================================================
-// ALTERNATIVE ENTRY POINTS FOR LIBRARY USAGE
-// ============================================================================
-
-/**
- * Library-style export for programmatic usage
- */
-export {
-    maZoneCECCanvasBackupUtility,
-    EnhancedmaZoneCECBackupUtility,
-    ApplicationFactory,
-    Config,
-    CanvasProcessor,
-    PlaywrightAutomationEngine,
-    FileSystemManager,
-    ExtendedFileSystemManager,
-    PDFGenerator,
-    TimingUtils,
-    PerformanceMonitor,
-    DevUtils,
+    return pdfFilename;
 };
 
-/**
- * Programmatic API for integration with other systems
- */
-export async function createBackup(bookUrl, options = {}) {
-    const app = ApplicationFactory.create({
-        ...options,
-        customUrl: bookUrl,
-    });
-    
-    return await app.run();
-}
+// ============================================================================
+// MAIN PROCESS
+// ============================================================================
 
-/**
- * Batch processing API for multiple books
- */
-export async function createBatchBackup(bookUrls, options = {}) {
-    const results = [];
+const processBook = async (page, bookName) => {
+    let pageNumber = 1;
+    let hasNextPage = true;
     
-    for (const url of bookUrls) {
+    console.log(`\n📖 Processing "${bookName}"...`);
+    console.log(`📏 Scale factor: ${config.processing.scaleFactor}x\n`);
+    
+    while (hasNextPage) {
         try {
-            const result = await createBackup(url, options);
-            results.push({ url, success: result });
+            // Reload page periodically for memory management
+            if (pageNumber > 1 && pageNumber % config.processing.reloadInterval === 0) {
+                await reloadPage(page, pageNumber);
+            }
+            
+            // Extract and save page
+            const imageData = await extractCanvasData(page);
+            await saveImage(pageNumber, imageData);
+            
+            console.log(`✓ Page ${pageNumber} saved`);
+            
+            // Move to next page
+            hasNextPage = await goToNextPage(page);
+            pageNumber++;
+            
         } catch (error) {
-            results.push({ url, success: false, error: error.message });
+            console.error(`❌ Error on page ${pageNumber}:`, error.message);
+            
+            // Try to continue
+            hasNextPage = await goToNextPage(page);
+            if (hasNextPage) {
+                pageNumber++;
+            }
         }
     }
     
-    return results;
-}
+    return pageNumber - 1; // Total pages processed
+};
+
+const goBackToLibrary = async (page) => {
+    try {
+        // Click back button or navigate to library
+        await page.goBack();
+        await wait(config.timeouts.navigation);
+    } catch (error) {
+        // If goBack fails, try navigating to home
+        console.log('Navigating back to library...');
+        await page.goto('https://mazonecec.com/application/mylibrary');
+        await wait(config.timeouts.navigation);
+    }
+};
+
+const main = async () => {
+    let browser, page;
+    
+    try {
+        // Validate environment
+        if (!config.auth.username || !config.auth.password) {
+            throw new Error('Missing USER or PASS environment variables');
+        }
+        
+        console.log('🎨 maZoneCEC Canvas Backup Utility v4.0 - Functional Edition');
+        console.log('=' .repeat(60));
+        
+        // Setup
+        ensureDirs();
+        
+        // Initialize browser
+        console.log('🚀 Launching browser...');
+        ({ browser, page } = await initBrowser());
+        
+        // Login
+        console.log('🔐 Logging in...');
+        await login(page);
+        
+        // Main loop - keep processing books until user quits
+        let continueProcessing = true;
+        
+        while (continueProcessing) {
+            try {
+                const bookStartTime = Date.now();
+                
+                // Discover and select book
+                console.log('📚 Discovering books...');
+                const books = await getBookList(page);
+                const selectedBook = await selectBook(page, books);
+                
+                // Check if user wants to quit
+                if (selectedBook === null) {
+                    console.log('\n👋 Exiting...');
+                    continueProcessing = false;
+                    break;
+                }
+                
+                console.log(`\n✓ Selected: "${selectedBook.title}"`);
+                
+                // Open the book
+                console.log('📂 Opening book...');
+                await openBook(page, selectedBook.index);
+                
+                // Process all pages
+                const totalPages = await processBook(page, selectedBook.title);
+                
+                // Generate PDF
+                console.log('\n📄 Generating PDF...');
+                console.log(`This may take a while please wait...`);
+                const pdfFilename = await createPDF(selectedBook.title, totalPages);
+                console.log(`✓ PDF saved: ${pdfFilename}`);
+                
+                // Create backup
+                console.log('💾 Creating backup...');
+                const backupPath = await moveToBackup(selectedBook.title);
+                console.log(`✓ Backup created: ${backupPath}`);
+                
+                // Summary for this book
+                const duration = ((Date.now() - bookStartTime) / 1000).toFixed(2);
+                console.log('\n' + '=' .repeat(60));
+                console.log('✅ BOOK COMPLETED');
+                console.log('=' .repeat(60));
+                console.log(`📖 Book: ${selectedBook.title}`);
+                console.log(`📄 Pages: ${totalPages}`);
+                console.log(`⏱️  Duration: ${duration}s`);
+                console.log('=' .repeat(60) + '\n');
+                
+                // Go back to library for next selection
+                await goBackToLibrary(page);
+                await cleanupTemp();
+                
+            } catch (error) {
+                console.error('\n⚠️  Error processing book:', error.message);
+                console.log('Returning to book selection...\n');
+                
+                // Try to go back to library to continue
+                try {
+                    await goBackToLibrary(page);
+                } catch (navError) {
+                    console.error('Could not return to library. Exiting.');
+                    continueProcessing = false;
+                }
+            }
+        }
+        
+    } catch (error) {
+        console.error('\n💥 Error:', error.message);
+        process.exit(1);
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+        await cleanupTemp();
+    }
+};
 
 // ============================================================================
-// EXECUTION - Only run main() if this is the primary module
+// ENTRY POINT
 // ============================================================================
 
-// if (import.meta.url === `file://${process.argv[1]}`) {
 main().catch(error => {
-    console.error('💥 Unhandled application error:', error);
+    console.error('💥 Fatal error:', error);
     process.exit(1);
 });
-// }
-
-// ============================================================================
-// MODULE METADATA
-// ============================================================================
-
-export const VERSION = '3.0.0';
-export const AUTHOR = 'DeltaGa & Robert56s';
-export const DESCRIPTION = 'Professional maZoneCEC Canvas Backup Utility with Advanced Scaling';
-
-console.log(`
-🎨 Module loaded: ${DESCRIPTION}
-📦 Version: ${VERSION}
-👨‍💻 Author: ${AUTHOR}
-🚀 ES2023 Features: Enabled
-⚡ Performance Mode: Optimized
-`);
