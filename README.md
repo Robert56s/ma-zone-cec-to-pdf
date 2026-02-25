@@ -22,4 +22,4 @@ To use this project, make sure you have the latest version of Node.js installed.
 npm i playwright fs path pdf-lib dotenv
 ```
 
-You need to create a file called .env and add you're email and password to it.
+Rename env.exemple to .env and add you're email and password to it.
