@@ -19,7 +19,7 @@ We do not endorse or condone any illegal activities, and any such use of this to
 To use this project, make sure you have the latest version of Node.js installed. You can download it from the official Node.js website: https://nodejs.org/
 
 ```
-npm i playwright fs path pdf-lib
+npm i playwright fs path pdf-lib dotenv
 ```
 
-You need to add you're email and password to .env
+You need to create a file called .env and add you're email and password to it.
