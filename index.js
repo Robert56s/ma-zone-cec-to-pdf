@@ -35,7 +35,7 @@ const config = {
         navigation: {
             bookContainer: `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div`,
             bookTitle: (index) => `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div[${index}]/div/div/div[1]/div[2]/div/div/div/button/span`,
-            openBook: (index) => `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div[${index}]/div/div/div[2]/div/div[2]/div/div[1]/div[1]/div/div[1]/button/img`,
+            openBook: (index) => `xpath=//*[@id="content"]/div/div/div[1]/div/div[1]/div/div[2]/div[2]/div/div/div[1]/div/div[1]/div[2]/div[2]/div[${index}]/div/div/div[2]/div/div[2]/div/div[1]/div[1]/div/div[1]/a`,
             pageInput: `xpath=/html/body/div/div/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/div[1]/input`,
             nextButton: 'xpath=//*[@id="DocumentContainer"]/div/div[3]/div[2]/div/button',
         },
@@ -420,6 +420,7 @@ const main = async () => {
                 
                 // Open the book
                 console.log('📂 Opening book...');
+                console.log(selectedBook.index)
                 await openBook(page, selectedBook.index);
                 
                 // Process all pages

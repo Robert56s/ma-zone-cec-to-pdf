@@ -1,0 +1,222 @@
+[
+  {
+    "text": "",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 5,
+    "y": 33,
+    "w": 52,
+    "h": 40
+  },
+  {
+    "text": "",
+    "ariaLabel": "",
+    "title": "",
+    "class": "button-with-white-color",
+    "x": 57,
+    "y": 33,
+    "w": 52,
+    "h": 40
+  },
+  {
+    "text": "Cahier A — Licence individuelle",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 788,
+    "y": 32,
+    "w": 345,
+    "h": 42
+  },
+  {
+    "text": "",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 1794,
+    "y": 39,
+    "w": 20,
+    "h": 28
+  },
+  {
+    "text": "",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 1824,
+    "y": 40,
+    "w": 46,
+    "h": 26
+  },
+  {
+    "text": "",
+    "ariaLabel": "",
+    "title": "",
+    "class": "hide-on-mobile",
+    "x": 1870,
+    "y": 40,
+    "w": 45,
+    "h": 25
+  },
+  {
+    "text": "RN\nRobert Nelea\n@robertn\nMon profil",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": -270,
+    "y": 113,
+    "w": 270,
+    "h": 67
+  },
+  {
+    "text": "Bibliothèque",
+    "ariaLabel": "",
+    "title": "",
+    "class": "_2uPnR_VySnikUiXgu1hyE2",
+    "x": -270,
+    "y": 205,
+    "w": 270,
+    "h": 50
+  },
+  {
+    "text": "Code d'activation",
+    "ariaLabel": "",
+    "title": "",
+    "class": "_2uPnR_VySnikUiXgu1hyE2",
+    "x": -270,
+    "y": 265,
+    "w": 270,
+    "h": 50
+  },
+  {
+    "text": "Rejoindre un groupe",
+    "ariaLabel": "",
+    "title": "",
+    "class": "_2uPnR_VySnikUiXgu1hyE2",
+    "x": -270,
+    "y": 325,
+    "w": 270,
+    "h": 50
+  },
+  {
+    "text": "Paramètres",
+    "ariaLabel": "",
+    "title": "",
+    "class": "_2uPnR_VySnikUiXgu1hyE2",
+    "x": -270,
+    "y": 385,
+    "w": 270,
+    "h": 50
+  },
+  {
+    "text": "Notifications",
+    "ariaLabel": "",
+    "title": "",
+    "class": "_2uPnR_VySnikUiXgu1hyE2",
+    "x": -270,
+    "y": 445,
+    "w": 270,
+    "h": 50
+  },
+  {
+    "text": "Déconnexion",
+    "ariaLabel": "",
+    "title": "",
+    "class": "_2uPnR_VySnikUiXgu1hyE2",
+    "x": -270,
+    "y": 1001,
+    "w": 270,
+    "h": 50
+  },
+  {
+    "text": "v. 2.79.0 - web (sni 2.15.5)",
+    "ariaLabel": "",
+    "title": "",
+    "class": "hide-on-mobile",
+    "x": -270,
+    "y": 1056,
+    "w": 270,
+    "h": 24
+  },
+  {
+    "text": "",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 270,
+    "y": 85,
+    "w": 1650,
+    "h": 995
+  },
+  {
+    "text": "C1",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": -256,
+    "y": 85,
+    "w": 737,
+    "h": 890
+  },
+  {
+    "text": "C2",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 481,
+    "y": 85,
+    "w": 737,
+    "h": 890
+  },
+  {
+    "text": "I",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 1217,
+    "y": 85,
+    "w": 737,
+    "h": 890
+  },
+  {
+    "text": "II",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 1954,
+    "y": 85,
+    "w": 737,
+    "h": 890
+  },
+  {
+    "text": "III",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 2690,
+    "y": 85,
+    "w": 737,
+    "h": 890
+  },
+  {
+    "text": "Table des matières",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 39,
+    "y": 1053,
+    "w": 105,
+    "h": 15
+  },
+  {
+    "text": "Favoris",
+    "ariaLabel": "",
+    "title": "",
+    "class": "",
+    "x": 174,
+    "y": 1053,
+    "w": 39,
+    "h": 15
+  }
+]
