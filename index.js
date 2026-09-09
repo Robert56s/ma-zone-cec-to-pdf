@@ -27,17 +27,18 @@ const config = {
     },
     selectors: {
         login: {
-            username: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/input',
-            password: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/div[2]/input',
-            rememberMe: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/button[1]',
-            connectButton: 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[3]/div/div[1]/div[2]/div/div[1]/div[1]/button[2]',
+            username: '//*[@id="root"]/div/div/div[1]/div[2]/form/div[1]/input',
+            password: '//*[@id="root"]/div/div/div[1]/div[2]/form/div[2]/input',
+            rememberMe: '//*[@id="remember"]',
+            connectButton: '//*[@id="root"]/div/div/div[1]/div[2]/form/button[1]',
         },
         navigation: {
-            bookContainer: `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div`,
-            bookTitle: (index) => `xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div/div[2]/div[2]/div[${index}]/div/div/div[1]/div[2]/div/div/div/button/span`,
-            openBook: (index) => `xpath=//*[@id="content"]/div/div/div[1]/div/div[1]/div/div[2]/div[2]/div/div/div[1]/div/div[1]/div[2]/div[2]/div[${index}]/div/div/div[2]/div/div[2]/div/div[1]/div[1]/div/div[1]/a`,
-            pageInput: `xpath=/html/body/div/div/div/div/div/div[1]/div/div[1]/div[2]/div/div/div[3]/div[1]/input`,
-            nextButton: 'xpath=//*[@id="DocumentContainer"]/div/div[3]/div[2]/div/button',
+            bookContainer: `xpath=//a[starts-with(@data-testid, "bookshelf_component_thumbnail_")]`,
+            bookTitle: (index) => `xpath=(//a[starts-with(@data-testid, "bookshelf_component_name_")])[${index}]/span[1]`,
+            openBook: (index) => `xpath=(//a[starts-with(@data-testid, "bookshelf_component_thumbnail_")])[${index}]`,
+            pageInput: `xpath=//input[starts-with(@placeholder, "Page")]`,
+            switchToSinglePage: '[data-testid="bookreader_resource_mode_page_by_page"]',
+            nextButton: '[data-testid="next_previous_btn_right_arrow"]',
         },
         viewer: {
             canvas: '.canvasWrapper > canvas:nth-child(1)',
@@ -63,6 +64,15 @@ const config = {
 // ============================================================================
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// The page-number input is a controlled React field: Locator.fill()/.press()
+// can leave Playwright waiting forever on it because the field re-renders on
+// every keystroke. Focusing it and driving the keyboard directly is reliable.
+const goToPageCode = async (page, pageInputLocator, code) => {
+    await pageInputLocator.click();
+    await page.keyboard.type(String(code), { delay: 50 });
+    await page.keyboard.press('Enter');
+};
 
 const ensureDirs = () => {
     [config.paths.tempDir, config.paths.saveDir].forEach(dir => {
@@ -175,10 +185,9 @@ const openBook = async (page, bookIndex) => {
     await page.waitForNavigation();
     await wait(config.timeouts.navigation);
     
-    // If view is multipage, switch to single page
+    // If view is in the multi-page/thumbnail overview mode, switch to single page
     try {
-        const extraSelector = 'xpath=//*[@id="content"]/div/div/div/div/div[1]/div/div[2]/div[2]/div/div/div/div/div[1]/div/div/div[1]/div[2]/div[2]/div[1]/div/button/div';
-        const extraLoc = page.locator(extraSelector);
+        const extraLoc = page.locator(config.selectors.navigation.switchToSinglePage);
         if (await extraLoc.count() > 0) {
             try {
                 await extraLoc.first().click({ timeout: 2000 });
@@ -193,8 +202,7 @@ const openBook = async (page, bookIndex) => {
 
     // Navigate to cover page
     const pageInput = page.locator(config.selectors.navigation.pageInput);
-    await pageInput.fill('C1');
-    await pageInput.press('Enter');
+    await goToPageCode(page, pageInput, 'C1');
     await wait(config.timeouts.navigation);
 };
 
@@ -230,16 +238,20 @@ const goToNextPage = async (page) => {
 };
 
 const reloadPage = async (page, currentPageNumber) => {
-    const pageInput = page.locator(config.selectors.navigation.pageInput);
-    const currentPage = await pageInput.inputValue();
-    
+    // The page-number input never reflects the current page in its value
+    // (it's a "jump to" field, not a display), so read the real page code
+    // from the URL's ?page= query param instead.
+    const currentPageCode = new URL(page.url()).searchParams.get('page');
+
     await page.reload();
     await wait(config.timeouts.pageReload);
-    
-    await pageInput.fill(currentPage);
-    await pageInput.press('Enter');
+
+    if (currentPageCode) {
+        const pageInput = page.locator(config.selectors.navigation.pageInput);
+        await goToPageCode(page, pageInput, currentPageCode);
+    }
     await wait(config.timeouts.navigation);
-    
+
     console.log('🔄 Page reloaded for memory management');
 };
 
